@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Snake Multiplayer Definitivo</title>
+<style>
+body { margin:0; overflow:hidden; background:#111; }
+canvas { display:block; }
+#msg {
+  position:absolute;
+  top:20px;
+  left:50%;
+  transform:translateX(-50%);
+  color:white;
+  font-size:30px;
+  font-family:Arial, sans-serif;
+  opacity:0.9;
+}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="msg"></div>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const AREA_W = 3000;
+const AREA_H = 3000;
+
+let mouse = {x: AREA_W/2, y: AREA_H/2};
+let camera = {x:0, y:0};
+canvas.addEventListener('mousemove', e=>{
+  mouse.x = e.clientX + camera.x;
+  mouse.y = e.clientY + camera.y;
+});
+
+// Cibo
+let food = [];
+for(let i=0;i<100;i++) food.push({x:Math.random()*AREA_W, y:Math.random()*AREA_H});
+
+// Giocatore
+let player = {x:AREA_W/2, y:AREA_H/2, tail:[], score:5, alive:true};
+
+// Messaggi
+const msgDiv = document.getElementById('msg');
+function showMsg(txt){ msgDiv.innerText = txt; setTimeout(()=>{msgDiv.innerText='';},1000); }
+
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+
+function respawn(){
+  player.x = AREA_W/2;
+  player.y = AREA_H/2;
+  player.tail = [];
+  player.score = 5;
+  player.alive = true;
+}
+
+// Game loop
+function gameLoop(){
+  if(player.alive){
+    let dx = mouse.x - player.x;
+    let dy = mouse.y - player.y;
+    let d = Math.hypot(dx,dy);
+    if(d>0){
+      let speed = 4;
+      player.x += dx/d*speed;
+      player.y += dy/d*speed;
+    }
+  }
+
+  // Aggiorna tail
+  player.tail.push({x:player.x, y:player.y});
+  let maxTail = player.score*5; // coda cresce correttamente
+  if(player.tail.length>maxTail) player.tail.shift();
+
+  // Collisione con cibo
+  food.forEach(f=>{
+    if(dist(player,f)<15){
+      player.score++;
+      f.x = Math.random()*AREA_W;
+      f.y = Math.random()*AREA_H;
+    }
+  });
+
+  // Collisione con se stesso
+  for(let i=0;i<player.tail.length-5;i++){
+    if(dist(player,player.tail[i])<8){
+      player.alive=false; showMsg("Hai toccato la tua coda!");
+      setTimeout(respawn,2000);
+    }
+  }
+
+  // Collisione con muri
+  if(player.x<10||player.x>AREA_W-10||player.y<10||player.y>AREA_H-10){
+    player.alive=false; showMsg("Hai colpito un muro!");
+    setTimeout(respawn,2000);
+  }
+
+  // Camera segue giocatore
+  camera.x = player.x - canvas.width/2;
+  camera.y = player.y - canvas.height/2;
+
+  // Disegna sfondo
+  ctx.fillStyle='#111';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Confini
+  ctx.strokeStyle='white'; ctx.lineWidth=4;
+  ctx.strokeRect(-camera.x,-camera.y,AREA_W,AREA_H);
+
+  // Cibo
+  food.forEach(f=>{
+    ctx.fillStyle='red';
+    ctx.beginPath(); ctx.arc(f.x-camera.x,f.y-camera.y,8,0,Math.PI*2); ctx.fill();
+  });
+
+  // Serpente giocatore
+  if(player.alive){
+    ctx.fillStyle='lime';
+    player.tail.forEach(seg=>{
+      ctx.beginPath(); ctx.arc(seg.x-camera.x,seg.y-camera.y,6,0,Math.PI*2); ctx.fill();
+    });
+    ctx.beginPath();
+    ctx.arc(player.x-camera.x,player.y-camera.y,8,0,Math.PI*2); ctx.fill();
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>
